@@ -1,0 +1,1 @@
+const fs = require("fs"); const path = require("path"); const os = require("os"); function getConfig() { const configPath = path.join(os.homedir(), ".valedesk", "config.json"); return JSON.parse(fs.readFileSync(configPath, "utf8")); } const config = getConfig(); const MCP_URL = config.mcpServers.default.url;
