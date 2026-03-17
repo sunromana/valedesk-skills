@@ -10,7 +10,7 @@ This skill connects ValeDesk to a Model Context Protocol (MCP) server.
 
 The MCP server URL is read from the local configuration file:
 
-`~/.valedesk/config.json`
+./config.json
 
 Example:
 
