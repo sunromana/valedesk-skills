@@ -2,18 +2,28 @@ const fs = require("fs");
 const path = require("path");
 
 function getConfig() {
-  // process.cwd() указывает на папку, откуда был запущен процесс агента (ваша папка проекта).
-  // Это гарантирует, что агент не полезет искать конфиг на диск C в папку инсталляции.
+  // Ищем config.json в рабочей директории проекта (process.cwd())
   const configPath = path.join(process.cwd(), "config.json");
   
   if (!fs.existsSync(configPath)) {
-    console.warn(`[MCP Skill] Конфиг не найден по пути: ${configPath}. Используются настройки по умолчанию.`);
-    return { mcpServers: { default: { url: "http://localhost:8081/mcp" } } };
+    throw new Error(`[MCP Skill] Конфиг не найден! Пожалуйста, создайте файл config.json в папке вашего проекта: ${configPath}`);
   }
   
-  return JSON.parse(fs.readFileSync(configPath, "utf8"));
+  try {
+    const fileContent = fs.readFileSync(configPath, "utf8");
+    const configData = JSON.parse(fileContent);
+    
+    if (!configData?.mcpServers?.default?.url) {
+      throw new Error("Неверный формат конфига. Ожидается: mcpServers.default.url");
+    }
+    
+    return configData;
+  } catch (err) {
+    throw new Error(`[MCP Skill] Ошибка чтения config.json: ${err.message}`);
+  }
 }
 
+// Получаем URL сервера один раз при инициализации скила
 const config = getConfig();
 const MCP_URL = config.mcpServers.default.url;
 
@@ -29,26 +39,40 @@ async function mcpRequest(method, params = {}) {
     })
   });
 
+  if (!res.ok) {
+    throw new Error(`[MCP Skill] Ошибка запроса к MCP: HTTP ${res.status}`);
+  }
+
   return res.json();
 }
 
 async function listTools() {
-  // Читаем тулы напрямую из файла ../mcp/openapi.json относительно папки проекта.
-  // Если папка mcp находится ВНУТРИ проекта (например .mcp), замените "..", "mcp" на ".mcp"
-  const openapiPath = path.join(process.cwd(), "..", "mcp", "openapi.json");
+  // Динамически формируем путь до openapi.json на основе URL из конфига пользователя
+  const openapiUrl = MCP_URL.endsWith("/") 
+    ? `${MCP_URL}openapi.json` 
+    : `${MCP_URL}/openapi.json`;
   
   try {
-    const fileContent = fs.readFileSync(openapiPath, "utf8");
-    return JSON.parse(fileContent);
-  } catch (err) {
-    console.error(`[MCP Skill] Ошибка при чтении openapi.json по пути: ${openapiPath}`, err.message);
-    
-    // Альтернативный вариант: если под "..mcp/openapi.json" вы имели в виду URL на сервере
-    // раскомментируйте код ниже, чтобы забирать тулы по сети:
-    /*
-    const openapiUrl = MCP_URL.replace(/\/mcp\/?$/, "/mcp/openapi.json");
     const res = await fetch(openapiUrl);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
     return await res.json();
-    */
+  } catch (err) {
+    console.error(`[MCP Skill] Ошибка при загрузке списка тулов по адресу ${openapiUrl}:`, err.message);
+    // Возвращаем пустую структуру, чтобы агент мог продолжить работу, даже если сервер тулов временно недоступен
+    return {};
+  }
+}
 
-    return
+async function callTool(name, args = {}) {
+  return await mcpRequest("tools/call", {
+    name,
+    arguments: args
+  });
+}
+
+module.exports = {
+  listTools,
+  callTool
+};
