@@ -1,14 +1,12 @@
----
-
 name: mcp-universal
-description: Allows ValeDesk to call tools from an MCP server defined in the user's local ~/.valedesk/config.json
+description: Allows ValeDesk to call tools from an MCP server defined in the project's local config.json and reads openapi.json
 -----------------------------------------------------------------------------------------------------------------
 
 # MCP Universal
 
 This skill connects ValeDesk to a Model Context Protocol (MCP) server.
 
-The MCP server URL is read from the local configuration file:
+The MCP server URL is read from the local configuration file located in your current project directory:
 
 ./config.json
 
@@ -22,6 +20,3 @@ Example:
     }
   }
 }
-```
-
-When this skill is used, ValeDesk can call tools exposed by the configured MCP server.
